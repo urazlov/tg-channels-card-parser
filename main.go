@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strings"
 
+	"github.com/sqweek/dialog"
 	"golang.org/x/net/html"
 )
 
@@ -118,18 +118,6 @@ func channelNodes(n *html.Node) []*html.Node {
 	return ret
 }
 
-func fetchHTML(url string) (*http.Response, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("error: status code %d", resp.StatusCode)
-	}
-	return resp, nil
-}
-
 func saveToJSON(channels []Channel, filename string) error {
 	file, err := os.Create(filename)
 	if err != nil {
@@ -143,21 +131,29 @@ func saveToJSON(channels []Channel, filename string) error {
 }
 
 func main() {
-	url := "https://telega.in/catalog"
-	resp, err := fetchHTML(url)
+	filePath, err := dialog.File().Filter("HTML files", "html").Load()
 	if err != nil {
-		panic(err)
+		fmt.Println("Error selecting file:", err)
+		return
 	}
-	defer resp.Body.Close()
 
-	channels, err := ParseChannels(resp.Body)
+	file, err := os.Open(filePath)
 	if err != nil {
-		panic(err)
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+
+	channels, err := ParseChannels(file)
+	if err != nil {
+		fmt.Println("Error parsing channels:", err)
+		return
 	}
 
 	err = saveToJSON(channels, "channels.json")
 	if err != nil {
-		panic(err)
+		fmt.Println("Error saving JSON:", err)
+		return
 	}
 
 	fmt.Println("Все должно быть спаршено ебано рот")
